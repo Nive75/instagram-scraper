@@ -24,6 +24,7 @@
             <input type="text" id="username" name="username" class="w-full p-3 border border-gray-300 rounded mb-4" required>
             <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Rechercher</button>
         </form>
+<a href="historique.php" class="w-full bg-gray-500 text-white py-2 rounded mt-4 block text-center">Voir l'historique des recherches</a>
     </div>
 </body>
 </html>
@@ -68,9 +69,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8", $db_username, $password);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+            // Insérer la recherche dans la table "recherche"
+            $stmt = $pdo->prepare("INSERT INTO recherches (username, date_recherche) VALUES (:username, NOW())");
+            $stmt->bindParam(':username', $username);
+            $stmt->execute();
+
+            // Récupérer l'ID de la recherche
+            $recherche_id = $pdo->lastInsertId();
+
             // Parcourir les posts et les afficher
             foreach ($data['data']['items'] as $post) {
-                // Récupérer les informations du post
+                $post_id = isset($post['id']) ? $post['id'] : '';
                 $caption_text = isset($post['caption']['text']) ? $post['caption']['text'] : 'Texte non disponible';
                 $post_date = date('Y-m-d', $post['caption']['created_at']);
                 $likes_count = isset($post['like_count']) ? $post['like_count'] : 0;
@@ -78,27 +87,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $media_url = isset($post['carousel_media'][0]['image_versions'][0]['url']) ? $post['carousel_media'][0]['image_versions'][0]['url'] : '';
                 $media_type = isset($post['media_type']) ? $post['media_type'] : 'photo';
                 $view_count = isset($post['view_count']) ? $post['view_count'] : 0;
-                $post_id = isset($post['id']) ? $post['id'] : '';
 
-                // Afficher le post
-                echo "<li>";
-                echo "<strong>Publié le : </strong>" . $post_date . "<br>";
+                echo "<li><strong>Publié le : </strong>" . $post_date . "<br>";
                 echo "<strong>Texte : </strong>" . $caption_text . "<br>";
                 echo "<strong>Likes : </strong>" . $likes_count . "<br>";
                 echo "<strong>Commentaires : </strong>" . $comments_count . "<br>";
                 echo "<strong>Vues : </strong>" . $view_count . "<br>";
                 echo "<strong>Type de média : </strong>" . $media_type . "<br>";
-                echo "<img src='" . $media_url . "' alt='Image du post' style='width: 300px;'><br>";
-                echo "</li><br>";
+                echo "<img src='" . $media_url . "' alt='Image du post' style='width: 300px;'><br></li><br>";
 
-                // Insérer le post dans la base de données
                 try {
-                    $stmt = $pdo->prepare("INSERT INTO posts (username, post_id, post_date, caption, likes_count, comments_count, media_url, media_type, view_count) 
-                                           VALUES (:username, :post_id, :post_date, :caption, :likes_count, :comments_count, :media_url, :media_type, :view_count)");
-                    $stmt->bindParam(':username', $username);
+                    $stmt = $pdo->prepare("INSERT INTO posts (recherche_id, post_id, date_post, likes_count, comments_count, media_url, media_type, view_count) 
+                                           VALUES (:recherche_id, :post_id, :date_post, :likes_count, :comments_count, :media_url, :media_type, :view_count)");
+                    $stmt->bindParam(':recherche_id', $recherche_id);
                     $stmt->bindParam(':post_id', $post_id);
-                    $stmt->bindParam(':post_date', $post_date);
-                    $stmt->bindParam(':caption', $caption_text);
+                    $stmt->bindParam(':date_post', $post_date);
                     $stmt->bindParam(':likes_count', $likes_count);
                     $stmt->bindParam(':comments_count', $comments_count);
                     $stmt->bindParam(':media_url', $media_url);
@@ -119,4 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
+
+
 
